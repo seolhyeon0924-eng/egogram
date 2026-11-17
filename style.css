@@ -299,9 +299,6 @@ footer.site-foot .in{display:flex;flex-direction:column;gap:4px}
 .field label{font-weight:800}
 .field input{height:54px;border:2px solid var(--line);border-radius:18px;background:#fff;color:var(--ink);font:inherit;font-size:16px;padding:0 18px;width:100%}
 .field input:focus{border-color:var(--ink);outline:none}
-.sugg{display:flex;flex-wrap:wrap;gap:8px}
-.sugg button{border:2px solid var(--line);background:#fff;border-radius:999px;padding:6px 14px;font-size:14px;font-weight:600;cursor:pointer}
-@media (hover:hover){.sugg button:hover{border-color:var(--brand);color:var(--brand-deep)}}
 
 .end-band{padding-block:48px 64px}
 .end-band .in{display:flex;flex-direction:column;align-items:center;gap:18px;text-align:center;background:var(--hero);border-radius:36px;padding:44px 24px;max-width:1040px}
@@ -384,21 +381,38 @@ footer.site-foot .in{display:flex;flex-direction:column;gap:4px}
 
 /* ---- interpreter mode ---- */
 body:not(.interp-mode) .interp-only{display:none!important}
-body.interp-mode .taker-only{display:none!important}
-.rsec.interp-only > h2::before{content:"해석자 참고";display:inline-block;vertical-align:middle;margin:-4px 10px 0 0;font-size:12px;font-weight:800;background:var(--ink);color:#fff;border-radius:999px;padding:3px 10px;letter-spacing:0}
-.rnav button.exit{background:var(--ink);color:#fff;margin-left:auto}
-.interp-banner{background:var(--ink);color:#fff;border-radius:24px;padding:16px 20px;margin-top:32px;font-size:15px;font-weight:600}
-.interp-banner b{color:#FF9DBC}
-.note{display:flex;flex-direction:column;gap:14px;max-width:760px}
-.nfield{background:var(--bg-soft);border-radius:24px;padding:18px 20px;display:flex;flex-direction:column;gap:8px}
-.nfield label,.nfield b{font-weight:800}
-.nfield .hint{font-size:13.5px;color:var(--ink-3);font-weight:500}
-.nfield textarea,.nfield input{width:100%;border:2px solid var(--line);border-radius:16px;background:#fff;color:var(--ink);font:inherit;font-size:16px;padding:12px 16px}
-.nfield textarea{min-height:110px;resize:vertical;line-height:1.6}
-.nfield textarea:focus,.nfield input:focus{border-color:var(--ink);outline:none}
-.nfield p{white-space:pre-wrap}
-.note-empty{background:var(--bg-soft);border-radius:24px;padding:28px 22px;text-align:center;color:var(--ink-2);font-weight:600}
-.note-by{font-size:14px;color:var(--ink-2);font-weight:700}
+
+/* ---- 접수번호 (검사 결과 화면, 해석 가이드) ---- */
+.rid{display:inline-block;margin-top:14px;background:#fff;border-radius:999px;padding:8px 22px;font-size:15px;font-weight:700;color:var(--ink-2);box-shadow:0 0 0 2px rgba(0,0,0,.05)}
+.rid:empty{display:none}
+.rid b{font-size:26px;font-weight:900;letter-spacing:.14em;color:var(--ink);margin-left:6px;vertical-align:-2px}
+
+/* ---- 해석 가이드 (report.html) ---- */
+.report .rid{margin:10px 0 4px}
+.g-open{background:var(--brand-soft);border-left:6px solid var(--brand);border-radius:0 24px 24px 0;padding:16px 20px;max-width:860px}
+.g-open b{display:block;font-size:13px;color:var(--brand-deep);margin-bottom:2px}
+.g-open p{font-size:17px;font-weight:700}
+.g-steps{list-style:none;padding:0;margin:16px 0 0;display:flex;flex-direction:column;gap:12px;max-width:860px}
+.g-steps li{display:flex;gap:14px;border:2px solid var(--line);border-radius:24px;padding:16px 20px}
+.g-steps .n{flex:none;width:30px;height:30px;border-radius:50%;background:var(--ink);color:#fff;display:grid;place-items:center;font-weight:900;font-size:14px;margin-top:2px}
+.g-steps h3{font-size:17px;font-weight:800;margin-bottom:2px}
+.g-steps p{color:var(--ink-2)}
+.g-steps p b{color:var(--ink)}
+.g-steps .say{margin-top:6px;font-weight:700;color:#7B4FC4}
+.answers{display:grid;gap:16px}
+@media (min-width:880px){.answers{grid-template-columns:1fr 1fr}}
+.ans-g{background:var(--bg-soft);border-radius:24px;padding:18px 20px}
+.ans-g h3{display:flex;align-items:center;gap:8px;font-size:17px;font-weight:800;margin-bottom:10px}
+.ans-g h3 span{background:var(--c);color:#fff;border-radius:9px;font-size:12px;padding:3px 8px}
+.ans-g h3 small{margin-left:auto;font-size:14px;color:var(--ink-2)}
+.ans-g ol{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:6px}
+.ans-g li{display:flex;gap:10px;align-items:flex-start;font-size:14.5px;background:#fff;border-radius:14px;padding:8px 12px}
+.ans-g .v{flex:none;width:52px;text-align:center;font-size:12.5px;font-weight:800;border-radius:999px;padding:2px 0;background:var(--bg-soft);color:var(--ink-2)}
+.ans-g li.v3 .v{background:var(--c);color:#fff}
+.ans-g li.v2 .v{background:var(--cs);color:var(--ink)}
+.ans-g li.v0{opacity:.75}
+.rp-bad{max-width:480px;margin:80px auto;text-align:center;background:var(--bg-soft);border-radius:28px;padding:40px 24px}
+.rp-bad h1{font-size:22px;font-weight:900;margin-bottom:8px}
 
 svg text{font-family:var(--font)}
 .fade{animation:fade .35s ease both}

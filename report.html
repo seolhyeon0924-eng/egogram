@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- 해석자만 보는 페이지라 검색에 안 뜨게 함 -->
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>해석 가이드 | 이고그램</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="style.css?v=20261117">
+</head>
+<!-- 해석자가 메일 링크로 들어오는 페이지. 결과는 주소 # 뒤에 들어 있고, script.js가 읽어서 그려 줌 -->
+<body class="interp-mode report">
+
+<header class="site">
+  <div class="in">
+    <span class="logo">
+      <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
+        <rect x="2" y="15" width="4.4" height="13" rx="2.2" fill="var(--cp)"/>
+        <rect x="7.8" y="7" width="4.4" height="21" rx="2.2" fill="var(--np)"/>
+        <rect x="13.6" y="3" width="4.4" height="25" rx="2.2" fill="var(--a)"/>
+        <rect x="19.4" y="10" width="4.4" height="18" rx="2.2" fill="var(--fc)"/>
+        <rect x="25.2" y="17" width="4.4" height="11" rx="2.2" fill="var(--ac)"/>
+      </svg>
+      이고그램 · 해석 가이드
+    </span>
+  </div>
+</header>
+
+<main id="reportPage">
+  <section class="r-hero">
+    <div class="in">
+      <div class="head">
+        <span class="eye" id="rEye">나의 이고그램 결과</span>
+        <h1 id="rTitle"></h1>
+        <p class="desc" id="rDesc"></p>
+        <p class="rid" id="rRid"></p>
+        <div class="chips" id="rChips"></div>
+      </div>
+      <div class="r-art"><svg id="rArt" role="img" aria-label="나의 자아상태 점수 막대그래프"></svg></div>
+    </div>
+    <svg class="wave" viewBox="0 0 1440 56" preserveAspectRatio="none" aria-hidden="true"><path d="M0 28 C 240 66 480 0 720 24 C 960 48 1200 6 1440 28 L1440 56 L0 56 Z" fill="#fff"/></svg>
+  </section>
+
+  <nav class="rnav" aria-label="결과 목차">
+    <div class="in">
+      <button type="button" data-go="rGuide">해석 순서</button>
+      <button type="button" data-go="rScores">점수</button>
+      <button type="button" data-go="rChart">이고그램</button>
+      <button type="button" class="interp-only" data-go="rStory">자동 해석안</button>
+      <button type="button" class="interp-only" data-go="rBalance">균형 분석</button>
+      <button type="button" class="interp-only" data-go="rLife">생활자세</button>
+      <button type="button" class="interp-only" data-go="rSitu">상황별 모습</button>
+      <button type="button" class="interp-only" data-go="rType">유형</button>
+      <button type="button" class="interp-only" data-go="rFocus">강점·성장</button>
+      <button type="button" data-go="rDetail">자아상태별</button>
+      <button type="button" class="interp-only" data-go="rThink">질문 예시</button>
+      <button type="button" data-go="rAnswers">응답 전체</button>
+    </div>
+  </nav>
+
+  <div class="in">
+    <section class="rsec" id="rGuide">
+      <h2>이 순서대로 해석해 주세요</h2>
+      <p class="lead">한 사람에 5~10분이면 충분해요. 보라색 글씨는 그대로 말해도 되는 문장이에요. 아래 내용은 점수로 자동 계산한 참고 자료라서, 응답자의 이야기를 듣고 맞는 부분만 골라 쓰세요.</p>
+      <div class="g-open" id="guideOpen"></div>
+      <ol class="g-steps" id="guideSteps"></ol>
+    </section>
+
+    <section class="rsec" id="rScores">
+      <h2>자아상태별 점수</h2>
+      <p class="lead">각 자아상태는 10문항, 0–30점이에요. 세로선은 내 다섯 점수의 평균이고, 평균보다 3점 이상 높거나 낮으면 ‘높은 편’, ‘낮은 편’으로 표시했어요.</p>
+      <div class="meters" id="meters"></div>
+    </section>
+
+    <section class="rsec" id="rChart">
+      <h2>나의 이고그램</h2>
+      <p class="lead">다섯 점수를 선으로 이은 그래프예요. 가장 높은 곳과 가장 낮은 곳에 동그라미를 표시했어요.</p>
+      <div class="two-col">
+        <div class="chart-card">
+          <svg id="chart" role="img" aria-label="이고그램 그래프"></svg>
+          <div class="legend" id="legend"></div>
+          <label class="chk" id="prevWrap" hidden><input type="checkbox" id="prevChk"> <span id="prevLabel"></span></label>
+        </div>
+        <div class="side-list">
+          <div class="principle"><b>가장 높은 곳</b><span>익숙하게 쓰는 에너지예요. 나를 지켜 온 방식이기도 해요.</span></div>
+          <div class="principle"><b>가장 낮은 곳</b><span>아직 덜 써 본 에너지예요. 성장의 자리가 됩니다.</span></div>
+          <div class="principle"><b>변화의 원리</b><span>높은 것을 깎기보다 낮은 것을 키우세요. 에너지 총량은 대체로 일정해서, 낮은 곳을 자주 쓰면 높던 곳은 자연스럽게 제자리를 찾아요.</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="rsec" id="rStory">
+      <h2>자동 해석안</h2>
+      <p class="lead">점수의 높낮이만으로 만든 문장이에요. 응답자의 이야기를 듣고 맞는 부분만 골라 쓰세요.</p>
+      <div class="story">
+        <div class="story-text" id="storyText"></div>
+        <aside class="keys" id="storyKeys"></aside>
+      </div>
+    </section>
+
+    <section class="rsec" id="rBalance">
+      <h2>균형 분석</h2>
+      <p class="lead">이고그램은 하나의 점수보다 점수끼리의 관계에서 더 많은 것을 알려 줘요. 어버이 자아(CP·NP), 어린이 자아(FC·AC) 안의 균형과 어른 자아(A)의 위치를 살펴봤어요.</p>
+      <div class="bal" id="bal"></div>
+      <div class="combos" id="combos"></div>
+    </section>
+
+    <section class="rsec" id="rLife">
+      <h2>나와 타인을 대하는 태도</h2>
+      <p class="lead">교류분석의 이고그램 해석에서는 흔히 NP와 CP의 차이로 <b>타인을 대하는 태도</b>를, FC와 AC의 차이로 <b>자신을 대하는 태도</b>를 가늠해요. 이를 교류분석의 생활자세(인생태도) 네 가지에 비춰 본 결과예요.</p>
+      <div class="life">
+        <div class="life-plot"><svg id="lifePlot" role="img" aria-label="생활자세 좌표"></svg></div>
+        <div class="life-text" id="lifeText"></div>
+      </div>
+    </section>
+
+    <section class="rsec" id="rSitu">
+      <h2>상황별로 보이는 나의 모습</h2>
+      <p class="lead">가장 높은 자아상태가 일상에서 어떻게 드러나기 쉬운지, 가장 낮은 자아상태 때문에 어떤 상황이 어려울 수 있는지 정리했어요.</p>
+      <div class="situ" id="situ"></div>
+    </section>
+
+    <section class="rsec" id="rType">
+      <h2>그래프 유형</h2>
+      <p class="lead" id="typeLead"></p>
+      <div class="types" id="types"></div>
+      <p class="meters-note" style="margin-top:14px">일치도는 내 그래프와 각 유형의 높낮이 패턴이 얼마나 비슷한지(상관)를 나타내요. 유형 명칭은 연구자와 검사지에 따라 다를 수 있어요.</p>
+    </section>
+
+    <section class="rsec" id="rFocus">
+      <h2>나의 강점과 성장 포인트</h2>
+      <p class="lead">가장 높은 자아상태는 강점이 되지만 지나치면 부담이 되고, 가장 낮은 자아상태는 의식적으로 연습할수록 커져요.</p>
+      <div class="focus" id="focus"></div>
+    </section>
+
+    <section class="rsec" id="rDetail">
+      <h2>자아상태별 특징</h2>
+      <p class="lead">다섯 자아상태를 하나씩 눌러 보세요.</p>
+      <div class="tabs" role="tablist" id="tabs"></div>
+      <div class="tabpanel" role="tabpanel" id="tabpanel"></div>
+    </section>
+
+    <section class="rsec" id="rThink">
+      <h2>응답자에게 던질 질문 예시</h2>
+      <p class="lead">높은 자아상태는 ‘고칠 대상’이 아니라 무언가를 지키고 있는 부분일 수 있어요. 결론을 말해 주기 전에 이런 질문으로 응답자의 이야기를 먼저 들어 보세요.</p>
+      <div class="think">
+        <div class="parts" id="parts"></div>
+        <ol class="qs-list" id="reflect"></ol>
+      </div>
+    </section>
+
+    <section class="rsec" id="rAnswers">
+      <h2>응답 전체</h2>
+      <p class="lead">자아상태별로 묶은 50문항 응답이에요. ‘항상’(3점)과 ‘드물다’(0점)로 답한 문장을 짚으며 이야기를 꺼내 보세요.</p>
+      <div class="answers" id="answers"></div>
+    </section>
+  </div>
+</main>
+
+<footer class="site-foot">
+  <div class="in">
+    <span>해석자용 페이지예요. 점수로 자동 계산한 참고 자료이며 심리 진단이 아니에요.</span>
+  </div>
+</footer>
+
+<script src="script.js?v=20261117"></script>
+</body>
+</html>

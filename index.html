@@ -6,7 +6,7 @@
 <title>이고그램 검사 | 나의 자아상태 알아보기</title>
 <meta name="description" content="교류분석 이고그램으로 알아보는 다섯 가지 자아상태 검사">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=20261117">
 </head>
 <body>
 
@@ -70,7 +70,7 @@
       <div class="steps">
         <div class="step"><span class="n">1</span><h3>문장에 답하기</h3><p>50개 문장을 읽고 나와 얼마나 비슷한지 <b>항상 · 자주 · 가끔 · 드물다</b> 중에서 골라요. 한 페이지에 10문항씩, 모두 5페이지예요.</p></div>
         <div class="step"><span class="n">2</span><h3>자동 채점</h3><p>다섯 자아상태마다 10문항씩 점수를 더해 0–30점으로 계산해요. 직접 더할 필요가 없어요.</p></div>
-        <div class="step"><span class="n">3</span><h3>해석자와 함께 보기</h3><p>점수와 이고그램 그래프가 나오면 해석자에게 보여 주세요. 높고 낮은 곳이 무슨 뜻인지 함께 이야기해요.</p></div>
+        <div class="step"><span class="n">3</span><h3>해석자와 함께 보기</h3><p>결과가 나오면 화면의 <b>접수번호</b>를 해석자에게 알려 주세요. 높고 낮은 곳이 무슨 뜻인지 함께 이야기해요.</p></div>
       </div>
     </div>
   </section>
@@ -165,10 +165,9 @@
     <div class="in">
       <div class="head">
         <span class="eye" id="rEye">나의 이고그램 결과</span>
-        <h1 id="rTitle" class="interp-only"></h1>
-        <p class="desc interp-only" id="rDesc"></p>
-        <h1 class="taker-only">나의 이고그램<small>점수와 그래프가 나왔어요</small></h1>
-        <p class="desc taker-only">이 화면을 해석자에게 보여 주세요. 그래프가 어떤 의미인지는 해석자와 이야기하며 함께 풀어 가요.</p>
+        <h1>나의 이고그램<small>점수와 그래프가 나왔어요</small></h1>
+        <p class="desc">해석자에게 <b>접수번호</b>를 알려 주세요. 그래프가 어떤 의미인지는 해석자와 이야기하며 함께 풀어 가요.</p>
+        <p class="rid" id="rRid"></p>
         <div class="chips" id="rChips"></div>
       </div>
       <div class="r-art"><svg id="rArt" role="img" aria-label="나의 자아상태 점수 막대그래프"></svg></div>
@@ -180,21 +179,11 @@
     <div class="in">
       <button type="button" data-go="rScores">점수</button>
       <button type="button" data-go="rChart">이고그램</button>
-      <button type="button" class="interp-only" data-go="rStory">자동 해석안</button>
-      <button type="button" class="interp-only" data-go="rBalance">균형 분석</button>
-      <button type="button" class="interp-only" data-go="rLife">생활자세</button>
-      <button type="button" class="interp-only" data-go="rSitu">상황별 모습</button>
-      <button type="button" class="interp-only" data-go="rType">유형</button>
-      <button type="button" class="interp-only" data-go="rFocus">강점·성장</button>
       <button type="button" data-go="rDetail">자아상태별</button>
-      <button type="button" class="interp-only" data-go="rThink">질문 예시</button>
-      <button type="button" data-go="rNote">해석자의 해석</button>
-      <button type="button" class="interp-only exit" id="exitInterp">응답자 화면으로</button>
     </div>
   </nav>
 
   <div class="in">
-    <div class="interp-banner interp-only" role="note"><b>해석자 모드</b> · ‘해석자 참고’ 표시가 붙은 부분은 점수로 자동 계산한 참고 자료예요. 응답자 화면에는 보이지 않아요. 그대로 읽어 주기보다 근거로 삼아, 맨 아래 <b>해석자의 해석</b>에 직접 적어 주세요.</div>
 
     <section class="rsec" id="rScores">
       <h2>자아상태별 점수</h2>
@@ -219,49 +208,6 @@
       </div>
     </section>
 
-    <section class="rsec interp-only" id="rStory">
-      <h2>자동 해석안</h2>
-      <p class="lead">점수의 높낮이만으로 만든 문장이에요. 응답자의 이야기를 듣고 맞는 부분만 골라 쓰세요.</p>
-      <div class="story">
-        <div class="story-text" id="storyText"></div>
-        <aside class="keys" id="storyKeys"></aside>
-      </div>
-    </section>
-
-    <section class="rsec interp-only" id="rBalance">
-      <h2>균형 분석</h2>
-      <p class="lead">이고그램은 하나의 점수보다 점수끼리의 관계에서 더 많은 것을 알려 줘요. 어버이 자아(CP·NP), 어린이 자아(FC·AC) 안의 균형과 어른 자아(A)의 위치를 살펴봤어요.</p>
-      <div class="bal" id="bal"></div>
-      <div class="combos" id="combos"></div>
-    </section>
-
-    <section class="rsec interp-only" id="rLife">
-      <h2>나와 타인을 대하는 태도</h2>
-      <p class="lead">교류분석의 이고그램 해석에서는 흔히 NP와 CP의 차이로 <b>타인을 대하는 태도</b>를, FC와 AC의 차이로 <b>자신을 대하는 태도</b>를 가늠해요. 이를 교류분석의 생활자세(인생태도) 네 가지에 비춰 본 결과예요.</p>
-      <div class="life">
-        <div class="life-plot"><svg id="lifePlot" role="img" aria-label="생활자세 좌표"></svg></div>
-        <div class="life-text" id="lifeText"></div>
-      </div>
-    </section>
-
-    <section class="rsec interp-only" id="rSitu">
-      <h2>상황별로 보이는 나의 모습</h2>
-      <p class="lead">가장 높은 자아상태가 일상에서 어떻게 드러나기 쉬운지, 가장 낮은 자아상태 때문에 어떤 상황이 어려울 수 있는지 정리했어요.</p>
-      <div class="situ" id="situ"></div>
-    </section>
-
-    <section class="rsec interp-only" id="rType">
-      <h2>내 그래프는 어떤 모양에 가까울까?</h2>
-      <p class="lead" id="typeLead"></p>
-      <div class="types" id="types"></div>
-      <p class="meters-note" style="margin-top:14px">일치도는 내 그래프와 각 유형의 높낮이 패턴이 얼마나 비슷한지(상관)를 나타내요. 유형 명칭은 연구자와 검사지에 따라 다를 수 있어요.</p>
-    </section>
-
-    <section class="rsec interp-only" id="rFocus">
-      <h2>나의 강점과 성장 포인트</h2>
-      <p class="lead">가장 높은 자아상태는 강점이 되지만 지나치면 부담이 되고, 가장 낮은 자아상태는 의식적으로 연습할수록 커져요.</p>
-      <div class="focus" id="focus"></div>
-    </section>
 
     <section class="rsec" id="rDetail">
       <h2>자아상태별 특징</h2>
@@ -270,21 +216,6 @@
       <div class="tabpanel" role="tabpanel" id="tabpanel"></div>
     </section>
 
-    <section class="rsec interp-only" id="rThink">
-      <h2>응답자에게 던질 질문 예시</h2>
-      <p class="lead">높은 자아상태는 ‘고칠 대상’이 아니라 무언가를 지키고 있는 부분일 수 있어요. 결론을 말해 주기 전에 이런 질문으로 응답자의 이야기를 먼저 들어 보세요.</p>
-      <div class="think">
-        <div class="parts" id="parts"></div>
-        <ol class="qs-list" id="reflect"></ol>
-      </div>
-    </section>
-
-    <section class="rsec" id="rNote">
-      <h2>해석자의 해석</h2>
-      <p class="lead taker-only">해석자가 내 그래프를 보고 함께 이야기한 내용이에요.</p>
-      <p class="lead interp-only">응답자와 이야기하며 직접 적어 주세요. 적은 내용은 응답자 화면과 ‘결과 텍스트 복사’에 그대로 들어가요. 입력하는 즉시 이 기기에 저장돼요.</p>
-      <div class="note" id="note"></div>
-    </section>
   </div>
 
   <section class="end-band">
@@ -294,7 +225,6 @@
         <button class="btn btn-primary" type="button" id="copyBtn">결과 텍스트 복사</button>
         <button class="btn btn-line" type="button" id="editBtn">응답 수정하기</button>
         <button class="btn btn-line" type="button" id="retakeBtn">다시 검사하기</button>
-        <button class="btn btn-line taker-only" type="button" id="interpBtn">해석자 모드</button>
       </div>
       <p class="toast" id="toast" role="status"></p>
       <textarea class="copybox" id="copyBox" readonly hidden aria-label="복사할 결과 텍스트"></textarea>
@@ -309,11 +239,11 @@
 
 <footer class="site-foot">
   <div class="in">
-    <span>본 검사는 교육·자기이해용이며 심리 진단 도구가 아닙니다. 응답과 결과는 지금 사용 중인 기기의 브라우저에만 저장돼요.</span>
+    <span>본 검사는 교육·자기이해용이며 심리 진단 도구가 아닙니다. 응답은 이 기기의 브라우저에 저장되고, 결과를 보면 해석을 위해 부스 해석자에게 메일로 전달돼요.</span>
     <span>채점: 자아상태별 10문항 합계(0–30점) · 교류분석 자아상태 검사 50문항</span>
   </div>
 </footer>
 
-<script src="script.js"></script>
+<script src="script.js?v=20261117"></script>
 </body>
 </html>

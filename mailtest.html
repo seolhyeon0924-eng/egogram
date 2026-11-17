@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>메일 연결 점검 | 이고그램</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;max-width:560px;margin:0 auto;padding:28px 18px 60px;color:#343C4B;line-height:1.7;word-break:keep-all}
+h1{font-size:22px;margin:0 0 6px}
+p.sub{color:#646C7C;margin:0 0 20px}
+button{width:100%;min-height:54px;border:0;border-radius:999px;background:#33A474;color:#fff;font-size:17px;font-weight:800}
+button:disabled{opacity:.6}
+.box{margin-top:16px;border-radius:12px;padding:14px 16px;background:#F5F6F8;font-size:15px}
+.ok{background:#E6F6EE}.bad{background:#FDECEC}
+.box b{display:block;margin-bottom:4px}
+code{font-size:12px;word-break:break-all;color:#646C7C}
+</style>
+</head>
+<body>
+<!-- 메일이 안 올 때 원인 찾는 페이지. 버튼 누르면 테스트 메일을 한 통 보내 봄 -->
+<h1>메일 연결 점검</h1>
+<p class="sub">버튼을 누르면 해석자 메일로 <b>접수 TEST</b> 메일을 한 통 보내 보고, 안 되면 이유를 알려 줘요.</p>
+<button id="go" type="button">점검 시작</button>
+<div id="out"></div>
+<div id="last"></div>
+<script>
+(function(){
+var out = document.getElementById("out"), go = document.getElementById("go");
+function add(cls, title, msg){ var d = document.createElement("div"); d.className = "box " + cls; d.innerHTML = "<b>" + title + "</b>" + msg; out.appendChild(d); }
+// 이 기기에서 검사 끝났을 때 메일 보낸 마지막 기록
+(function(){
+  var st; try{ st = JSON.parse(localStorage.getItem("egogram.web.v1")); }catch(e){}
+  var L = st && st.mailLog, el = document.getElementById("last");
+  if(!st || !st.mailLog && !st.rid){ el.innerHTML = '<div class="box"><b>이 기기의 검사 기록</b>이 기기에서 한 검사가 없어요.</div>'; return; }
+  var t = L ? new Date(L.at).toLocaleString("ko-KR") : "";
+  el.innerHTML = '<div class="box ' + (L ? (L.ok ? "ok" : "bad") : "") + '"><b>이 기기에서 마지막으로 한 검사 (접수 ' + (L && L.rid || st.rid || "?") + ')</b>' +
+    (!L ? "메일을 보낸 기록이 없어요. 검사 페이지가 예전 파일로 열렸을 수 있어요. 검사 페이지를 새로고침한 뒤 다시 해 보세요."
+        : L.ok ? t + " 해석자에게 보냈어요." : t + " 보내지 못했어요.<br><code>" + String(L.err).replace(/</g,"&lt;") + "</code>") + '</div>';
+})();
+go.onclick = function(){
+  out.innerHTML = ""; go.disabled = true; go.textContent = "점검 중…";
+  var url = "";
+  // 1. script.js에서 MAIL_URL 읽기 (새로고침 캐시 무시)
+  fetch("script.js?t=" + Date.now(), {cache:"no-store"}).then(function(r){ return r.text(); }).then(function(js){
+    var m = js.match(/var MAIL_URL = "([^"]*)"/);
+    url = m ? m[1] : "";
+    if(!url) throw {stop:true, t:"script.js에 MAIL_URL이 비어 있어요", m:"script.js의 <b>var MAIL_URL = \"\";</b> 따옴표 사이에 Apps Script 웹 앱 주소를 넣고 커밋해 주세요."};
+    if(!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(url)) throw {stop:true, t:"MAIL_URL 주소 모양이 이상해요", m:"<code>" + url.replace(/</g,"&lt;") + "</code><br>https://script.google.com/macros/s/…/exec 처럼 <b>/exec</b>로 끝나는 주소여야 해요. (/dev로 끝나는 주소는 안 돼요)"};
+    add("ok", "1. 주소 확인 ✓", "<code>" + url + "</code>");
+    // 2. 테스트 메일 보내기
+    return fetch(url, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body:JSON.stringify({
+      rid:"TEST", subject:"[이고그램] 접수 TEST · 메일 연결 점검",
+      text:"메일 연결 점검으로 보낸 메일이에요. 이 메일이 왔다면 설정이 끝난 거예요.\n" + location.href,
+      html:"<p>메일 연결 점검으로 보낸 메일이에요. 이 메일이 왔다면 설정이 끝난 거예요.</p>",
+      link: location.href.split("#")[0]
+    })}).catch(function(){
+      throw {stop:true, t:"Apps Script에 연결하지 못했어요", m:"거의 항상 <b>배포 설정</b> 문제예요.<br>Apps Script에서 <b>배포 → 배포 관리 → ✏️ 연필</b>을 눌러<br>· 다음 사용자 인증 정보로 실행: <b>나</b><br>· 액세스 권한이 있는 사용자: <b>모든 사용자</b> (\"Google 계정이 있는 모든 사용자\" 말고 그냥 <b>모든 사용자</b>)<br>로 되어 있는지 확인하고, 버전을 <b>새 버전</b>으로 골라 <b>배포</b>해 주세요."};
+    });
+  }).then(function(r){ return r.text(); }).then(function(t){
+    var j; try{ j = JSON.parse(t); }catch(e){
+      throw {stop:true, t:"Apps Script가 이상한 답을 줬어요", m:"배포 설정의 액세스 권한을 <b>모든 사용자</b>로 바꾸고 새 버전으로 배포해 주세요.<br><code>" + t.slice(0,200).replace(/</g,"&lt;") + "</code>"};
+    }
+    if(j.ok){
+      add("ok", "2. 테스트 메일 보냄 ✓", "해석자 메일함에 <b>[이고그램] 접수 TEST</b> 메일이 왔는지 확인해 주세요. 안 보이면 <b>스팸함</b>을 봐 주세요.<br>오늘 남은 발송 횟수: " + j.left + "통<br><br>그래도 안 오면 Code.gs의 <b>TO</b> 메일 주소가 맞는지 확인해 주세요. (TO를 고쳤다면 꼭 <b>새 버전</b>으로 다시 배포해야 해요)");
+      return;
+    }
+    var e = String(j.error || ""), why;
+    if(/bad request|not pdf|too large/.test(e)) why = "Apps Script에 <b>예전 Code.gs</b>가 배포되어 있어요. Code.gs를 새 파일로 통째로 바꿔 붙여 넣고, TO를 해석자 메일로 적은 뒤 <b>배포 → 배포 관리 → ✏️ 연필 → 버전: 새 버전 → 배포</b>를 눌러 주세요.";
+    else if(/quota|Service invoked too many times|한도/i.test(e)) why = "오늘 보낼 수 있는 메일 수(약 100통)를 다 썼어요. 내일 다시 되거나, 다른 구글 계정으로 Apps Script를 하나 더 만들어 주세요.";
+    else if(/Invalid email|잘못된 이메일/i.test(e)) why = "Code.gs의 <b>TO</b> 메일 주소가 잘못됐어요. 고친 뒤 새 버전으로 다시 배포해 주세요.";
+    else if(/permission|authoriz|권한/i.test(e)) why = "메일 보내기 권한을 아직 허락하지 않았어요. Apps Script 편집기에서 <b>test</b> 함수를 한 번 실행하고 권한을 허용한 뒤, 새 버전으로 다시 배포해 주세요.";
+    else why = "아래 오류 내용을 그대로 알려 주세요.";
+    add("bad", "2. 메일을 보내지 못했어요", why + "<br><code>" + e.replace(/</g,"&lt;") + "</code>");
+  }).catch(function(x){
+    if(x && x.stop) add("bad", x.t, x.m);
+    else add("bad", "점검 중 오류", "<code>" + String(x).replace(/</g,"&lt;") + "</code>");
+  }).then(function(){ go.disabled = false; go.textContent = "다시 점검"; });
+};
+})();
+</script>
+</body>
+</html>

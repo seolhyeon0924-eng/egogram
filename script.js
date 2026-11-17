@@ -1,5 +1,11 @@
 (function(){
 "use strict";
+/* ---------- 해석자 메일 ---------- */
+// 결과를 보면 해석자에게 '해석 가이드 링크'를 메일로 보냄 (사랑의 삼각형 검사와 같은 Apps Script 주소 사용)
+// 받는 사람 메일은 Apps Script(Code.gs)의 TO에서 정함. 비워 두면 메일 안 보냄
+var MAIL_URL = "https://script.google.com/macros/s/AKfycbzH0hh2VkvzmIue6K1y0fA-hz8aA3mvmK8NfmgplEAEd1PjNvBoUXOfVTMaELtWiK7X/exec";
+// 지금 열린 게 해석 가이드 페이지(report.html)인지
+var REPORT = !!document.getElementById("reportPage");
 /* ---------- state colors ---------- */
 var MAS = {
   CP:{soft:"var(--cp-s)", deep:"#C93E28"},
@@ -179,15 +185,20 @@ var SHAPES = [
 /* ---------- storage ---------- */
 var KEY = "egogram.web.v1";
 function load(){ try{ var s=localStorage.getItem(KEY); return s?JSON.parse(s):null; }catch(e){ return null; } }
-function save(){ try{ localStorage.setItem(KEY, JSON.stringify(store)); }catch(e){} }
+function save(){ if(REPORT) return; try{ localStorage.setItem(KEY, JSON.stringify(store)); }catch(e){} }
 var store = load() || {};
 if(!Array.isArray(store.answers) || store.answers.length !== 50) store.answers = new Array(50).fill(null);
 if(!Array.isArray(store.history)) store.history = [];
-if(!store.note || typeof store.note!=="object") store.note = {};
+delete store.note;
 if(typeof store.page !== "number") store.page = 0;
 
 /* ---------- helpers ---------- */
-function $(id){ return document.getElementById(id); }
+// 없는 요소면 빈 껍데기를 돌려줌. 검사 화면(index)과 해석 가이드(report)가 같은 js를 써서, 한쪽에만 있는 요소 때문에 에러 나지 않게
+var NOEL = document.createElement("div");
+function $(id){ return document.getElementById(id) || NOEL; }
+// 접수번호. 해석자가 메일로 받은 링크랑 눈앞의 응답자를 맞춰 보는 용도. 헷갈리는 글자(0 O 1 I L)는 뺐음
+function newRid(){ var a="23456789ABCDEFGHJKMNPQRSTUVWXYZ", r=""; for(var i=0;i<4;i++) r+=a.charAt(Math.floor(Math.random()*a.length)); return r; }
+function rid(){ if(!store.rid){ store.rid=newRid(); save(); } return store.rid; }
 function cv(v){ return "var("+v+")"; }
 function esc(s){ return String(s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c];}); }
 function answered(){ return store.answers.filter(function(a){return a!==null;}).length; }
@@ -208,7 +219,6 @@ function clear(svg){ while(svg.firstChild) svg.removeChild(svg.firstChild); }
 /* ---------- views ---------- */
 var VIEWS = {home:$("vHome"), test:$("vTest"), loading:$("vLoading"), manual:$("vManual"), result:$("vResult")};
 function show(name){
-  if(name!=="result") document.body.classList.remove("interp-mode");
   Object.keys(VIEWS).forEach(function(k){ VIEWS[k].hidden = k!==name; });
   $("gnb").hidden = name !== "home";
   $("hdrStart").hidden = name === "test" || name === "loading";
@@ -278,7 +288,7 @@ function refreshHome(){
 
 /* ---------- test ---------- */
 function startTest(){
-  if(answered()===50){ archive(); store.note={}; store.answers=new Array(50).fill(null); store.page=0; save(); }
+  if(answered()===50){ archive(); store.answers=new Array(50).fill(null); store.page=0; store.rid=newRid(); store.sent=null; save(); }
   else{
     var f = store.answers.findIndex(function(a){return a===null;});
     store.page = f>=0 ? Math.floor(f/PER) : 0;
@@ -330,9 +340,9 @@ $("qList").addEventListener("click", function(e){
   setTimeout(function(){
     var next = miss.filter(function(k){return k>i;})[0];
     if(next===undefined) next = miss[0];
-    if(VIEWS.test.hidden || !$("q"+i)) return;
+    if(VIEWS.test.hidden || !document.getElementById("q"+i)) return;
     if(next!==undefined){
-      var nq = $("q"+next); if(nq) nq.scrollIntoView({block:"center",behavior:smooth()});
+      var nq = document.getElementById("q"+next); if(nq) nq.scrollIntoView({block:"center",behavior:smooth()});
     }else{
       $("nextBtn").scrollIntoView({block:"center",behavior:smooth()});
       $("nextBtn").focus({preventScroll:true});
@@ -373,13 +383,18 @@ function pushHistory(sc){
 function archive(){ if(answered()===50) pushHistory(scoreFrom(store.answers)); }
 function openResult(sc, source, record){
   current.sc=sc; current.source=source;
+  // 점수 입력으로 본 결과는 그때마다 새 접수번호
+  current.rid = source==="manual" ? (current.mrid && current.msc===sc.join(",") ? current.mrid : (current.mrid=newRid())) : rid();
+  current.msc = source==="manual" ? sc.join(",") : current.msc;
   var prev=null;
   for(var h=store.history.length-1;h>=0;h--){ if(store.history[h].s.join(",")!==sc.join(",")){ prev=store.history[h]; break; } }
   if(record) pushHistory(sc);
-  document.body.classList.remove("interp-mode");
   show("result");
   renderResult(sc, prev);
+  $("rRid").innerHTML = "접수번호 <b>"+esc(current.rid)+"</b>";
   requestAnimationFrame(function(){ Array.prototype.forEach.call(document.querySelectorAll("#meters .track i"), function(i){ i.style.width=i.dataset.w; }); });
+  // 결과가 보이면 해석자에게 메일 보냄. 같은 결과는 한 번만
+  sendReport();
 }
 
 function drawChart(svg, sc, prev){
@@ -516,13 +531,8 @@ function renderResult(sc, prev){
   tabs.onkeydown=function(e){ var k=Number(e.target.dataset.i); if(isNaN(k)) return; if(e.key==="ArrowRight"){ sel((k+1)%5); tabs.children[(k+1)%5].focus(); } if(e.key==="ArrowLeft"){ sel((k+4)%5); tabs.children[(k+4)%5].focus(); } };
   sel(flat?0:hi[0]);
 
-  renderInterp(sc, {hi:hi, lo:lo, mx:mx, mn:mn, flat:flat, mean:mean,
-    typeLabel: spread<=4 ? "평탄형" : matched ? best.name+" · "+best.sub : STATES[hi[0]].key+" 우세형"});
-
-  // interpreter note
-  current.low = flat ? STATES[2] : STATES[lo[0]];
-  if(store.note.sig !== sc.join(",")){ store.note = {sig:sc.join(",")}; save(); }
-  renderNote();
+  // 해석 부분은 해석 가이드(report.html)에만 있음. 검사 화면에서는 빈 껍데기에 그려져서 안 보임
+  renderInterp(sc, {hi:hi, lo:lo, mx:mx, mn:mn, flat:flat, mean:mean, typeLabel: typeLabel(sc)});
 
   $("editBtn").hidden = current.source!=="test";
   $("copyBox").hidden=true; $("toast").textContent=""; $("retakeConfirm").hidden=true;
@@ -677,52 +687,9 @@ function drawLife(svg, sx, sy){
   el("text",{x:px,y:py-20,"text-anchor":"middle","font-size":13,"font-weight":900,fill:cv("--ink")},svg,"나");
 }
 
-/* ---------- interpreter note ---------- */
-var NOTE_FIELDS = [
- {k:"sum", l:"종합 해석", ph:"그래프 모양과 가장 높은·낮은 자아상태를 보고, 응답자와 나눈 이야기를 바탕으로 적어 주세요."},
- {k:"str", l:"강점", ph:"응답자가 잘 쓰고 있는 에너지와 그게 드러나는 모습"},
- {k:"grow", l:"성장 포인트", ph:"조금 더 키워 보면 좋을 에너지"},
- {k:"act", l:"이번 주 실천 제안", ph:"함께 정한 행동이나 말 한 가지", sugg:true}
-];
-function isInterp(){ return document.body.classList.contains("interp-mode"); }
-function setMode(on){
-  document.body.classList.toggle("interp-mode", !!on);
-  if(current.sc) renderNote();
-}
-function renderNote(){
-  var n = store.note || {}, box = $("note");
-  if(isInterp()){
-    box.innerHTML = "<div class='nfield'><label for='n_who'>해석자</label><input id='n_who' data-k='who' type='text' autocomplete='off' placeholder='이름 (선택)' value='"+esc(n.who||"")+"'></div>"+
-      NOTE_FIELDS.map(function(f){
-        var sg = "";
-        if(f.sugg && current.low){
-          var ls = current.low;
-          sg = "<span class='hint'>참고 예시 ("+ls.key+" "+ls.name+") · 누르면 덧붙여져요</span><div class='sugg'>"+
-            ls.doList.concat(ls.sayList.map(function(t){return "“"+t+"”";})).map(function(t){return "<button type='button' data-add='"+esc(t)+"'>"+esc(t)+"</button>";}).join("")+"</div>";
-        }
-        return "<div class='nfield'><label for='n_"+f.k+"'>"+f.l+"</label><textarea id='n_"+f.k+"' data-k='"+f.k+"' placeholder='"+esc(f.ph)+"'>"+esc(n[f.k]||"")+"</textarea>"+sg+"</div>";
-      }).join("");
-    Array.prototype.forEach.call(box.querySelectorAll("[data-k]"), function(inp){
-      inp.addEventListener("input", function(){ store.note[inp.dataset.k] = inp.value; save(); });
-    });
-    Array.prototype.forEach.call(box.querySelectorAll("[data-add]"), function(b){
-      b.onclick = function(){ var ta=$("n_act"); ta.value = (ta.value.trim() ? ta.value.replace(/\s+$/,"")+"\n" : "") + b.dataset.add; store.note.act = ta.value; save(); ta.focus(); };
-    });
-  }else{
-    var filled = NOTE_FIELDS.filter(function(f){ return (n[f.k]||"").trim(); });
-    box.innerHTML = filled.length
-      ? (n.who && n.who.trim() ? "<p class='note-by'>해석자 · "+esc(n.who.trim())+"</p>" : "") +
-        filled.map(function(f){ return "<div class='nfield'><b>"+f.l+"</b><p>"+esc(n[f.k].trim())+"</p></div>"; }).join("")
-      : "<div class='note-empty'>아직 적힌 해석이 없어요.<br>이 화면을 해석자에게 보여 주고 함께 이야기해 보세요.</div>";
-  }
-}
-
 function resultText(){
   var sc=current.sc, rk=ranks(sc), out=["[나의 이고그램 결과] "+fmtDate(Date.now())];
   STATES.forEach(function(s,i){ out.push(s.key+" "+s.name+": "+sc[i]+"점 ("+rk[i]+"위)"); });
-  var n=store.note||{};
-  if((n.who||"").trim()) out.push("\n해석자: "+n.who.trim());
-  NOTE_FIELDS.forEach(function(f){ if((n[f.k]||"").trim()) out.push("\n["+f.l+"]\n"+n[f.k].trim()); });
   return out.join("\n");
 }
 
@@ -754,15 +721,105 @@ Array.prototype.forEach.call(document.querySelectorAll("[data-go]"),function(b){
 $("editBtn").onclick = function(){ store.page=0; save(); renderPage(); show("test"); };
 $("retakeBtn").onclick = function(){ $("retakeConfirm").hidden=false; $("retakeYes").focus(); };
 $("retakeNo").onclick = function(){ $("retakeConfirm").hidden=true; };
-$("retakeYes").onclick = function(){ archive(); store.note={}; store.answers=new Array(50).fill(null); store.page=0; save(); renderPage(); show("test"); };
-$("interpBtn").onclick = function(){ setMode(true); window.scrollTo({top:0}); };
-$("exitInterp").onclick = function(){ setMode(false); window.scrollTo({top:0}); };
+$("retakeYes").onclick = function(){ archive(); store.answers=new Array(50).fill(null); store.page=0; store.rid=newRid(); store.sent=null; save(); renderPage(); show("test"); };
 $("copyBtn").onclick = function(){
   var txt=resultText(), box=$("copyBox");
   function fb(){ box.hidden=false; box.value=txt; box.focus(); box.select(); $("toast").textContent="자동 복사가 안 되는 환경이에요. 아래 글을 길게 눌러 복사해 주세요."; }
   try{ navigator.clipboard.writeText(txt).then(function(){ $("toast").textContent="결과를 복사했어요. 메신저나 메모에 붙여 넣어 보세요."; },fb); }catch(err){ fb(); }
 };
 
-buildHome();
-goHome();
+/* ---------- 해석자에게 보내기 ---------- */
+// 그래프 유형 이름 (평탄형 / 대표 유형 / ○○ 우세형)
+function typeInfo(sc){
+  var mx=Math.max.apply(null,sc), mn=Math.min.apply(null,sc), spread=mx-mn, hi=sc.indexOf(mx);
+  var rs=SHAPES.map(function(s){return corr(sc,s.t);}), bi=0; rs.forEach(function(r,i){ if(r>rs[bi]) bi=i; });
+  var best=SHAPES[bi], matched = spread>4 && rs[bi]>=0.6;
+  return {label: spread<=4 ? "평탄형" : matched ? best.name+" · "+best.sub : STATES[hi].key+" 우세형", best:best, matched:matched, spread:spread};
+}
+function typeLabel(sc){ return typeInfo(sc).label; }
+// 해석 가이드 링크. 결과는 주소 # 뒤에 다 들어 있음 (# 뒤는 서버로 안 가서 깃허브에도 안 남음)
+// r: 접수번호, a: 50문항 답(0~3), s: 점수 입력으로 본 경우 다섯 점수, d: 검사한 시각
+function reportLink(){
+  var q = "r="+current.rid+"&d="+Date.now()+(current.source==="manual" ? "&s="+current.sc.join(".") : "&a="+store.answers.join(""));
+  return new URL("report.html", location.href).href.split("#")[0] + "#" + q;
+}
+// 메일은 뒤에서 조용히 보냄. 화면에는 아무것도 안 띄움. 실패하면 5초 뒤 두 번 더 시도
+var sendBusy = false;
+function reportSig(){ return current.rid+"|"+current.sc.join(","); }
+function sendReport(tries){
+  tries = tries || 0;
+  if(!MAIL_URL || sendBusy || !current.sc) return;
+  var sig = reportSig();
+  if((store.sentList||[]).indexOf(sig) >= 0) return;
+  sendBusy = true;
+  var sc = current.sc, label = typeLabel(sc), link = reportLink(), id = current.rid;
+  var scTxt = STATES.map(function(s,i){ return s.key+" "+sc[i]; }).join(" · ");
+  var body = {
+    rid: id,
+    subject: "[이고그램] 접수 "+id+" · "+label,
+    text: ["접수번호: "+id, "점수: "+scTxt+" (각 30점 만점)", "그래프 유형: "+label, "", "해석 가이드 열기: "+link, "", "링크를 열면 해석 순서와 설명이 모두 나와요. 응답자에게 접수번호를 확인한 뒤 해석해 주세요."].join("\n"),
+    html: '<div style="font-family:sans-serif;font-size:15px;line-height:1.7"><p style="font-size:22px;font-weight:800;margin:0 0 8px">[이고그램] 접수번호 '+esc(id)+'</p><p style="margin:0">점수: '+esc(scTxt)+' <span style="color:#999">(각 30점 만점)</span><br>그래프 유형: <b>'+esc(label)+'</b></p><p style="margin:20px 0"><a href="'+esc(link)+'" style="display:inline-block;background:#E8336C;color:#fff;text-decoration:none;font-weight:700;padding:12px 24px;border-radius:999px">해석 가이드 열기</a></p><p style="color:#666;font-size:13px">링크를 열면 해석 순서와 설명이 모두 나와요. 이 메일이 그대로 기록으로 남아요. 응답자에게 접수번호를 확인한 뒤 해석해 주세요.</p></div>',
+    link: link
+  };
+  // text/plain으로 보내야 브라우저가 사전 확인(CORS preflight)을 안 해서 Apps Script로 바로 감. keepalive: 창을 닫아도 끝까지 보냄
+  fetch(MAIL_URL, {method:"POST", keepalive:true, headers:{"Content-Type":"text/plain;charset=utf-8"}, body:JSON.stringify(body)})
+  .then(function(r){ return r.json(); }).then(function(j){
+    if(!j || !j.ok) throw new Error(j && j.error || "전송 실패");
+    store.sentList = (store.sentList||[]).concat(sig).slice(-10); store.mailLog = {at:Date.now(), ok:true, rid:id}; save(); sendBusy = false;
+  }).catch(function(e){
+    console.error(e); sendBusy = false; store.mailLog = {at:Date.now(), ok:false, rid:id, err:String(e && e.message || e)}; save();
+    if(tries < 2) setTimeout(function(){ sendReport(tries+1); }, 5000);
+  });
+}
+
+/* ---------- 해석 가이드 페이지 (report.html) ---------- */
+function renderReportPage(){
+  var p = {};
+  location.hash.replace(/^#/,"").split("&").forEach(function(kv){ var i=kv.indexOf("="); if(i>0) p[kv.slice(0,i)] = decodeURIComponent(kv.slice(i+1)); });
+  var ans = /^[0-3]{50}$/.test(p.a||"") ? p.a.split("").map(Number) : null;
+  var sc = ans ? scoreFrom(ans) : (/^\d{1,2}(\.\d{1,2}){4}$/.test(p.s||"") ? p.s.split(".").map(Number) : null);
+  if(!sc || !/^[0-9A-Z]{4}$/.test(p.r||"") || sc.some(function(v){ return v>30; })){
+    document.getElementById("reportPage").innerHTML = "<div class='in'><div class='rp-bad'><h1>링크가 올바르지 않아요</h1><p>메일에 있는 링크를 처음부터 끝까지 다 복사했는지 확인해 주세요.</p></div></div>";
+    return;
+  }
+  current.sc = sc; current.source = ans ? "test" : "manual"; current.rid = p.r;
+  document.title = "해석 가이드 "+p.r+" | 이고그램";
+  renderResult(sc, null);
+  $("rEye").textContent = "이고그램 해석 가이드 · 접수번호 "+p.r+" · "+fmtDate(+p.d || Date.now())+(ans?"":" · 점수 입력");
+  $("rRid").innerHTML = "접수번호 <b>"+esc(p.r)+"</b>";
+  renderGuide(sc);
+  renderAnswers(ans);
+  requestAnimationFrame(function(){ Array.prototype.forEach.call(document.querySelectorAll("#meters .track i"), function(i){ i.style.width=i.dataset.w; }); });
+}
+// 해석 순서. 해석자가 이론을 잘 몰라도 이 순서대로 말하면 되게
+function renderGuide(sc){
+  var mx=Math.max.apply(null,sc), mn=Math.min.apply(null,sc), flat=mx===mn, T=typeInfo(sc);
+  var H=STATES[sc.indexOf(mx)], L=STATES[sc.indexOf(mn)], lf=LIFE[lifeKey(sc)];
+  var open = flat ? "다섯 점수가 모두 같은, 고른 그래프예요. 하나씩 같이 살펴볼까요?"
+    : "그래프에서 "+H.name+"("+H.key+")이 가장 높고 "+L.name+"("+L.key+")이 가장 낮아요. 모양으로 보면 ‘"+T.label+"’에 가까워요. 어떤 뜻인지 같이 볼까요?";
+  var steps = [
+    ["검사 소개하기", "교류분석에서는 사람의 마음을 <b>다섯 가지 자아상태</b>로 나눠요. 좋고 나쁜 자아상태는 없고, 각 마음을 <b>얼마나 자주 꺼내 쓰는지</b>를 보는 검사예요.", "“사람 마음을 다섯 가지 에너지로 나눠 보는 검사예요. 높다고 좋은 것도, 낮다고 나쁜 것도 아니에요.”"],
+    ["그래프 모양 보기", flat ? "다섯 점수가 같아서 특정 유형으로 보기 어려워요. 비슷한 값으로만 답했을 수도 있어요." : "그래프 유형은 <b>"+esc(T.label)+"</b>이에요. "+(T.matched ? esc(T.best.desc) : "가장 높은 자아상태를 중심으로 이야기하면 돼요.")+" 아래 ‘그래프 유형’에서 네 가지 대표 모양과 비교해 볼 수 있어요.", "“"+open+"”"],
+    ["가장 높은 곳 이야기하기", flat ? "가장 높은 곳이 따로 없어요. 아래 ‘자아상태별 특징’에서 하나씩 눌러 보며 이야기해 주세요." : "<b>"+H.key+" "+H.name+" ("+mx+"점)</b>은 가장 익숙하게 쓰는 에너지예요. "+EXTRA[H.key].lead+". 강점으로 먼저 소개하고, 지나칠 때의 모습은 그다음에 살짝 짚어 주세요.", flat ? "“평소에 어떤 마음을 가장 자주 쓰는 것 같아요?”" : "“"+H.name+"의 에너지가 도움이 됐던 순간이 있었어요?”"],
+    ["가장 낮은 곳 이야기하기", flat ? "가장 낮은 곳이 따로 없어요." : "<b>"+L.key+" "+L.name+" ("+mn+"점)</b>은 아직 덜 써 본 에너지예요. "+EXTRA[L.key].leadLow+". 부족한 점이 아니라 <b>키울 수 있는 자리</b>라고 말해 주세요.", flat ? "“조금 더 써 보고 싶은 마음이 있어요?”" : "“"+L.name+"의 에너지를 써 본 적이 있다면 언제였어요?”"],
+    ["균형 보기", "아래 ‘균형 분석’의 세 카드를 보여 주세요. 어버이 자아 안에서 엄격함(CP)과 따뜻함(NP), 어린이 자아 안에서 표현(FC)과 맞춤(AC)이 어느 쪽으로 기울었는지, 어른 자아(A)가 얼마나 받쳐 주는지 보여 줘요.", "“이쪽은 따뜻함, 이쪽은 엄격함이에요. 어느 쪽이 더 익숙한 것 같아요?”"],
+    ["나와 타인을 대하는 태도", "생활자세 경향은 <b>"+lf.t+"</b>이에요. 점수 차이로 가늠한 참고 자료라서 단정하지 말고 질문으로 확인해 주세요."+(lifeKey(sc)!=="++" ? " 부정 쪽으로 나왔다면 ‘요즘 지친 일이 있었는지’ 가볍게 물어봐 주세요." : ""), "“요즘 나 자신한테는 어떤 편이에요? 다른 사람한테는요?”"],
+    ["질문으로 듣고, 실천 하나 정하기", "아래 ‘응답자에게 던질 질문 예시’로 이야기를 들은 뒤, 가장 낮은 자아상태를 키우는 행동 하나를 함께 골라요."+(flat ? "" : " 예: <b>"+esc(L.doList[0])+"</b>, “"+esc(L.sayList[0])+"”라고 말해 보기."), "“오늘 이야기 중에 이번 주에 하나만 해 본다면 뭐가 좋을까요?”"]
+  ];
+  $("guideOpen").innerHTML = "<b>이렇게 시작해 보세요</b><p>“"+open+"”</p>";
+  $("guideSteps").innerHTML = steps.map(function(s,i){ return "<li><span class='n'>"+(i+1)+"</span><div><h3>"+s[0]+"</h3><p>"+s[1]+"</p><p class='say'>"+s[2]+"</p></div></li>"; }).join("");
+}
+// 응답 전체. 자아상태별로 묶어서 보여줌
+function renderAnswers(ans){
+  if(!ans){ $("answers").innerHTML = "<p class='lead'>종이 검사지 점수로 입력한 결과라 문항별 응답은 없어요.</p>"; return; }
+  var lab = {3:"항상",2:"자주",1:"가끔",0:"드물다"};
+  $("answers").innerHTML = STATES.map(function(s,si){
+    return "<div class='ans-g' style='--c:"+cv(s.c)+";--cs:"+MAS[s.key].soft+"'><h3><span>"+s.key+"</span>"+s.name+"<small>"+scoreFrom(ans)[si]+" / 30</small></h3><ol>"+
+      s.items.map(function(n){ var v=ans[n-1]; return "<li class='v"+v+"'><span class='v'>"+lab[v]+"</span><span class='t'>"+n+". "+esc(QUESTIONS[n-1])+"</span></li>"; }).join("")+"</ol></div>";
+  }).join("");
+}
+window.addEventListener("hashchange", function(){ if(REPORT) renderReportPage(); });
+
+if(REPORT){ renderReportPage(); }
+else{ buildHome(); goHome(); }
 })();
