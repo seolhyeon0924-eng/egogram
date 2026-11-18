@@ -18,9 +18,9 @@ code{font-size:12px;word-break:break-all;color:#646C7C}
 </style>
 </head>
 <body>
-<!-- 메일이 안 올 때 원인 찾는 페이지. 버튼 누르면 테스트 메일을 한 통 보내 봄 -->
+<!-- 메일이 안 올 때 원인 찾는 페이지. 버튼 누르면 script.js의 MAIL_URLS 주소마다 테스트 메일을 한 통씩 보내 봄 -->
 <h1>메일 연결 점검</h1>
-<p class="sub">버튼을 누르면 해석자 메일로 <b>접수 TEST</b> 메일을 한 통 보내 보고, 안 되면 이유를 알려 줘요.</p>
+<p class="sub">버튼을 누르면 등록된 주소마다 해석자 메일로 <b>접수 TEST</b> 메일을 한 통씩 보내 보고, 안 되면 이유를 알려 줘요.</p>
 <button id="go" type="button">점검 시작</button>
 <div id="out"></div>
 <div id="last"></div>
@@ -36,42 +36,61 @@ function add(cls, title, msg){ var d = document.createElement("div"); d.classNam
   var t = L ? new Date(L.at).toLocaleString("ko-KR") : "";
   el.innerHTML = '<div class="box ' + (L ? (L.ok ? "ok" : "bad") : "") + '"><b>이 기기에서 마지막으로 한 검사 (접수 ' + (L && L.rid || st.rid || "?") + ')</b>' +
     (!L ? "메일을 보낸 기록이 없어요. 검사 페이지가 예전 파일로 열렸을 수 있어요. 검사 페이지를 새로고침한 뒤 다시 해 보세요."
-        : L.ok ? t + " 해석자에게 보냈어요." : t + " 보내지 못했어요.<br><code>" + String(L.err).replace(/</g,"&lt;") + "</code>") + '</div>';
+        : L.ok ? t + " 해석자에게 보냈어요." + (L.via ? " (" + L.via + "번 주소로)" : "") : t + " 보내지 못했어요.<br><code>" + String(L.err).replace(/</g,"&lt;") + "</code>") + '</div>';
 })();
+// 오류 내용 보고 이유 설명
+function why(e){
+  if(/bad request|not pdf|too large/.test(e)) return "이 주소의 Apps Script에 <b>예전 Code.gs</b>가 배포되어 있어요. Code.gs를 새 파일로 통째로 바꿔 붙여 넣고, TO를 해석자 메일로 적은 뒤 <b>배포 → 배포 관리 → ✏️ 연필 → 버전: 새 버전 → 배포</b>를 눌러 주세요.";
+  if(/quota|Service invoked too many times|한도/i.test(e)) return "이 계정은 오늘 보낼 수 있는 메일 수(약 100통)를 다 썼어요. 다른 주소가 있으면 검사할 때 자동으로 그 주소로 넘어가요.";
+  if(/Invalid email|잘못된 이메일/i.test(e)) return "이 주소의 Code.gs <b>TO</b> 메일 주소가 잘못됐어요. 고친 뒤 새 버전으로 다시 배포해 주세요.";
+  if(/permission|authoriz|권한/i.test(e)) return "메일 보내기 권한을 아직 허락하지 않았어요. 이 계정의 Apps Script 편집기에서 <b>test</b> 함수를 한 번 실행하고 권한을 허용한 뒤, 새 버전으로 다시 배포해 주세요.";
+  return "아래 오류 내용을 그대로 알려 주세요.";
+}
+var DEPLOY = "거의 항상 <b>배포 설정</b> 문제예요.<br>이 주소를 만든 계정의 Apps Script에서 <b>배포 → 배포 관리 → ✏️ 연필</b>을 눌러<br>· 다음 사용자 인증 정보로 실행: <b>나</b><br>· 액세스 권한이 있는 사용자: <b>모든 사용자</b> (\"Google 계정이 있는 모든 사용자\" 말고 그냥 <b>모든 사용자</b>)<br>로 되어 있는지 확인하고, 버전을 <b>새 버전</b>으로 골라 <b>배포</b>해 주세요.";
+// 주소 하나에 테스트 메일 보내 보기. 결과 상자 하나를 그림
+function testOne(url, no){
+  var name = (no+1) + "번 주소";
+  return fetch(url, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body:JSON.stringify({
+    rid:"TEST", subject:"[이고그램] 접수 TEST · 메일 연결 점검 ("+name+")",
+    text:"메일 연결 점검으로 보낸 메일이에요 ("+name+"). 이 메일이 왔다면 이 주소는 설정이 끝난 거예요.\n" + location.href,
+    html:"<p>메일 연결 점검으로 보낸 메일이에요 (<b>"+name+"</b>). 이 메일이 왔다면 이 주소는 설정이 끝난 거예요.</p>",
+    link: location.href.split("#")[0]
+  })}).then(function(r){ return r.text(); }, function(){ throw {t:name+": Apps Script에 연결하지 못했어요", m:DEPLOY}; })
+  .then(function(t){
+    var j; try{ j = JSON.parse(t); }catch(e){
+      throw {t:name+": Apps Script가 이상한 답을 줬어요", m:"배포 설정의 액세스 권한을 <b>모든 사용자</b>로 바꾸고 새 버전으로 배포해 주세요.<br><code>" + t.slice(0,200).replace(/</g,"&lt;") + "</code>"};
+    }
+    if(j.ok){ add("ok", name+" ✓ 테스트 메일 보냄", "<code>"+url+"</code><br>메일 제목: <b>[이고그램] 접수 TEST · 메일 연결 점검 ("+name+")</b>"+(j.left != null ? "<br>이 계정의 오늘 남은 발송 횟수: " + j.left + "통" : "")); return true; }
+    var e = String(j.error || "");
+    throw {t:name+": 메일을 보내지 못했어요", m:why(e) + "<br><code>" + e.replace(/</g,"&lt;") + "</code>"};
+  }).catch(function(x){
+    add("bad", x && x.t || name+": 점검 중 오류", (x && x.m || "<code>" + String(x).replace(/</g,"&lt;") + "</code>") + "<br><code>" + url + "</code>");
+    return false;
+  });
+}
 go.onclick = function(){
   out.innerHTML = ""; go.disabled = true; go.textContent = "점검 중…";
-  var url = "";
-  // 1. script.js에서 MAIL_URL 읽기 (새로고침 캐시 무시)
+  // 1. script.js에서 MAIL_URLS 목록 읽기 (새로고침 캐시 무시). 주석 처리된 줄(//로 시작)은 뺌
   fetch("script.js?t=" + Date.now(), {cache:"no-store"}).then(function(r){ return r.text(); }).then(function(js){
-    var m = js.match(/var MAIL_URL = "([^"]*)"/);
-    url = m ? m[1] : "";
-    if(!url) throw {stop:true, t:"script.js에 MAIL_URL이 비어 있어요", m:"script.js의 <b>var MAIL_URL = \"\";</b> 따옴표 사이에 Apps Script 웹 앱 주소를 넣고 커밋해 주세요."};
-    if(!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(url)) throw {stop:true, t:"MAIL_URL 주소 모양이 이상해요", m:"<code>" + url.replace(/</g,"&lt;") + "</code><br>https://script.google.com/macros/s/…/exec 처럼 <b>/exec</b>로 끝나는 주소여야 해요. (/dev로 끝나는 주소는 안 돼요)"};
-    add("ok", "1. 주소 확인 ✓", "<code>" + url + "</code>");
-    // 2. 테스트 메일 보내기
-    return fetch(url, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body:JSON.stringify({
-      rid:"TEST", subject:"[이고그램] 접수 TEST · 메일 연결 점검",
-      text:"메일 연결 점검으로 보낸 메일이에요. 이 메일이 왔다면 설정이 끝난 거예요.\n" + location.href,
-      html:"<p>메일 연결 점검으로 보낸 메일이에요. 이 메일이 왔다면 설정이 끝난 거예요.</p>",
-      link: location.href.split("#")[0]
-    })}).catch(function(){
-      throw {stop:true, t:"Apps Script에 연결하지 못했어요", m:"거의 항상 <b>배포 설정</b> 문제예요.<br>Apps Script에서 <b>배포 → 배포 관리 → ✏️ 연필</b>을 눌러<br>· 다음 사용자 인증 정보로 실행: <b>나</b><br>· 액세스 권한이 있는 사용자: <b>모든 사용자</b> (\"Google 계정이 있는 모든 사용자\" 말고 그냥 <b>모든 사용자</b>)<br>로 되어 있는지 확인하고, 버전을 <b>새 버전</b>으로 골라 <b>배포</b>해 주세요."};
+    var m = js.match(/var MAIL_URLS = \[([\s\S]*?)\]/);
+    if(!m) throw {stop:true, t:"script.js에서 MAIL_URLS를 못 찾았어요", m:"script.js 맨 위에 <b>var MAIL_URLS = [ … ]</b> 목록이 있는지 확인해 주세요."};
+    var urls = [];
+    m[1].split("\n").forEach(function(line){
+      if(/^\s*\/\//.test(line)) return;
+      var u = line.match(/"([^"]*)"/); if(u && u[1].indexOf("script.google.com") >= 0) urls.push(u[1]);
     });
-  }).then(function(r){ return r.text(); }).then(function(t){
-    var j; try{ j = JSON.parse(t); }catch(e){
-      throw {stop:true, t:"Apps Script가 이상한 답을 줬어요", m:"배포 설정의 액세스 권한을 <b>모든 사용자</b>로 바꾸고 새 버전으로 배포해 주세요.<br><code>" + t.slice(0,200).replace(/</g,"&lt;") + "</code>"};
-    }
-    if(j.ok){
-      add("ok", "2. 테스트 메일 보냄 ✓", "해석자 메일함에 <b>[이고그램] 접수 TEST</b> 메일이 왔는지 확인해 주세요. 안 보이면 <b>스팸함</b>을 봐 주세요.<br>오늘 남은 발송 횟수: " + j.left + "통<br><br>그래도 안 오면 Code.gs의 <b>TO</b> 메일 주소가 맞는지 확인해 주세요. (TO를 고쳤다면 꼭 <b>새 버전</b>으로 다시 배포해야 해요)");
-      return;
-    }
-    var e = String(j.error || ""), why;
-    if(/bad request|not pdf|too large/.test(e)) why = "Apps Script에 <b>예전 Code.gs</b>가 배포되어 있어요. Code.gs를 새 파일로 통째로 바꿔 붙여 넣고, TO를 해석자 메일로 적은 뒤 <b>배포 → 배포 관리 → ✏️ 연필 → 버전: 새 버전 → 배포</b>를 눌러 주세요.";
-    else if(/quota|Service invoked too many times|한도/i.test(e)) why = "오늘 보낼 수 있는 메일 수(약 100통)를 다 썼어요. 내일 다시 되거나, 다른 구글 계정으로 Apps Script를 하나 더 만들어 주세요.";
-    else if(/Invalid email|잘못된 이메일/i.test(e)) why = "Code.gs의 <b>TO</b> 메일 주소가 잘못됐어요. 고친 뒤 새 버전으로 다시 배포해 주세요.";
-    else if(/permission|authoriz|권한/i.test(e)) why = "메일 보내기 권한을 아직 허락하지 않았어요. Apps Script 편집기에서 <b>test</b> 함수를 한 번 실행하고 권한을 허용한 뒤, 새 버전으로 다시 배포해 주세요.";
-    else why = "아래 오류 내용을 그대로 알려 주세요.";
-    add("bad", "2. 메일을 보내지 못했어요", why + "<br><code>" + e.replace(/</g,"&lt;") + "</code>");
+    if(!urls.length) throw {stop:true, t:"MAIL_URLS에 주소가 없어요", m:"script.js의 <b>MAIL_URLS</b> 목록에 Apps Script 웹 앱 주소를 넣고 커밋해 주세요."};
+    var bad = urls.filter(function(u){ return !/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(u); });
+    if(bad.length) throw {stop:true, t:"주소 모양이 이상해요", m:bad.map(function(u){ return "<code>" + u.replace(/</g,"&lt;") + "</code>"; }).join("<br>") + "<br>https://script.google.com/macros/s/…/exec 처럼 <b>/exec</b>로 끝나는 주소여야 해요. (/dev로 끝나는 주소는 안 돼요)"};
+    add("ok", "주소 " + urls.length + "개 확인 ✓", "검사할 때는 1번부터 보내고, 한도가 끝나거나 실패하면 다음 주소로 넘어가요. 아래에서 주소마다 테스트 메일을 한 통씩 보내 볼게요.");
+    // 2. 주소마다 차례로 테스트 메일 보내기
+    var okN = 0, chain = Promise.resolve();
+    urls.forEach(function(u, i){ chain = chain.then(function(){ return testOne(u, i).then(function(ok){ if(ok) okN++; }); }); });
+    return chain.then(function(){
+      add(okN === urls.length ? "ok" : (okN ? "" : "bad"), "결과: " + urls.length + "개 중 " + okN + "개 성공",
+        "해석자 메일함에 <b>접수 TEST</b> 메일이 성공한 주소 수만큼 왔는지 확인해 주세요. 안 보이면 <b>스팸함</b>을 봐 주세요.<br>안 온 주소가 있으면 그 계정 Code.gs의 <b>TO</b> 메일 주소를 확인해 주세요. (TO를 고쳤다면 꼭 <b>새 버전</b>으로 다시 배포해야 해요)" +
+        (urls.length > 1 ? "<br>한도는 구글 계정마다 따로예요. 주소들이 모두 <b>서로 다른 구글 계정</b>에서 만든 건지도 확인해 주세요." : ""));
+    });
   }).catch(function(x){
     if(x && x.stop) add("bad", x.t, x.m);
     else add("bad", "점검 중 오류", "<code>" + String(x).replace(/</g,"&lt;") + "</code>");
