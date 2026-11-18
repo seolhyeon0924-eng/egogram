@@ -2,8 +2,14 @@
 "use strict";
 /* ---------- 해석자 메일 ---------- */
 // 결과를 보면 해석자에게 '해석 가이드 링크'를 메일로 보냄 (사랑의 삼각형 검사와 같은 Apps Script 주소 사용)
-// 받는 사람 메일은 Apps Script(Code.gs)의 TO에서 정함. 비워 두면 메일 안 보냄
-var MAIL_URL = "https://script.google.com/macros/s/AKfycbwIIbHjuYCxQYu0BWwRAMcaeZ0usu1nI4ZbaA7uv6ECscxtAD8GTUONqoR9NY89MU37/exec";
+// 받는 사람 메일은 각 Apps Script(Code.gs)의 TO에서 정함
+// 주소를 여러 개 넣으면, 앞 주소가 한도(하루 메일 개수)를 다 쓰거나 실패했을 때 다음 주소로 넘어가서 보냄
+// 한도는 구글 계정마다 따로라서, 다른 구글 계정으로 Code.gs를 하나씩 더 배포해서 주소를 아래에 추가하면 됨
+var MAIL_URLS = [
+  "https://script.google.com/macros/s/AKfycbwIIbHjuYCxQYu0BWwRAMcaeZ0usu1nI4ZbaA7uv6ECscxtAD8GTUONqoR9NY89MU37/exec"
+  // , "https://script.google.com/macros/s/두번째_계정_주소/exec"
+  // , "https://script.google.com/macros/s/세번째_계정_주소/exec"
+].filter(function(u){ return u && u.indexOf("script.google.com") >= 0; });
 // 지금 열린 게 해석 가이드 페이지(report.html)인지
 var REPORT = !!document.getElementById("reportPage");
 /* ---------- state colors ---------- */
@@ -743,12 +749,27 @@ function reportLink(){
   var q = "r="+current.rid+"&d="+Date.now()+(current.source==="manual" ? "&s="+current.sc.join(".") : "&a="+store.answers.join(""));
   return new URL("report.html", location.href).href.split("#")[0] + "#" + q;
 }
-// 메일은 뒤에서 조용히 보냄. 화면에는 아무것도 안 띄움. 실패하면 5초 뒤 두 번 더 시도
+// 어느 주소부터 시도할지. 이 기기에서 마지막으로 성공한 주소부터 (한도 찬 주소를 매번 먼저 두드리지 않게)
+// 한도는 하루 지나면 다시 차니까, 날짜가 바뀌면 다시 1번부터
+function mailStart(){
+  var m = store.mailIdx;
+  if(!m || m.day !== fmtDate(Date.now()) || !(m.i >= 0) || m.i >= MAIL_URLS.length) return 0;
+  return m.i;
+}
+// 주소 하나로 보내 보기. 한도 초과든 오류든 ok가 아니면 실패로 봄
+function postMail(url, body){
+  // text/plain으로 보내야 브라우저가 사전 확인(CORS preflight)을 안 해서 Apps Script로 바로 감. keepalive: 창을 닫아도 끝까지 보냄
+  return fetch(url, {method:"POST", keepalive:true, headers:{"Content-Type":"text/plain;charset=utf-8"}, body:JSON.stringify(body)})
+  .then(function(r){ return r.json(); })
+  .then(function(j){ if(!j || !j.ok) throw new Error(j && j.error || "전송 실패"); return j; });
+}
+// 메일은 뒤에서 조용히 보냄. 화면에는 아무것도 안 띄움
+// 한 주소가 실패하면(한도 끝 등) 바로 다음 주소로 넘어감. 전부 실패하면 5초 뒤 처음부터 두 번 더 시도
 var sendBusy = false;
 function reportSig(){ return current.rid+"|"+current.sc.join(","); }
 function sendReport(tries){
   tries = tries || 0;
-  if(!MAIL_URL || sendBusy || !current.sc) return;
+  if(!MAIL_URLS.length || sendBusy || !current.sc) return;
   var sig = reportSig();
   if((store.sentList||[]).indexOf(sig) >= 0) return;
   sendBusy = true;
@@ -761,11 +782,20 @@ function sendReport(tries){
     html: '<div style="font-family:sans-serif;font-size:15px;line-height:1.7"><p style="font-size:22px;font-weight:800;margin:0 0 8px">[이고그램] 접수번호 '+esc(id)+'</p><p style="margin:0">점수: '+esc(scTxt)+' <span style="color:#999">(각 30점 만점)</span><br>그래프 유형: <b>'+esc(label)+'</b></p><p style="margin:20px 0"><a href="'+esc(link)+'" style="display:inline-block;background:#E8336C;color:#fff;text-decoration:none;font-weight:700;padding:12px 24px;border-radius:999px">해석 가이드 열기</a></p><p style="color:#666;font-size:13px">링크를 열면 해석 순서와 설명이 모두 나와요. 이 메일이 그대로 기록으로 남아요. 응답자에게 접수번호를 확인한 뒤 해석해 주세요.</p></div>',
     link: link
   };
-  // text/plain으로 보내야 브라우저가 사전 확인(CORS preflight)을 안 해서 Apps Script로 바로 감. keepalive: 창을 닫아도 끝까지 보냄
-  fetch(MAIL_URL, {method:"POST", keepalive:true, headers:{"Content-Type":"text/plain;charset=utf-8"}, body:JSON.stringify(body)})
-  .then(function(r){ return r.json(); }).then(function(j){
-    if(!j || !j.ok) throw new Error(j && j.error || "전송 실패");
-    store.sentList = (store.sentList||[]).concat(sig).slice(-10); store.mailLog = {at:Date.now(), ok:true, rid:id}; save(); sendBusy = false;
+  var start = mailStart(), n = MAIL_URLS.length;
+  // k번째 시도: start번 주소부터 차례로, 끝까지 가면 앞쪽 주소로 돌아감
+  function attempt(k){
+    var idx = (start + k) % n;
+    return postMail(MAIL_URLS[idx], body).then(function(){ return idx; }, function(e){
+      console.warn("메일 주소 "+(idx+1)+"번 실패:", e && e.message || e);
+      if(k+1 < n) return attempt(k+1);
+      throw e;
+    });
+  }
+  attempt(0).then(function(idx){
+    store.sentList = (store.sentList||[]).concat(sig).slice(-10);
+    store.mailIdx = {i:idx, day:fmtDate(Date.now())};
+    store.mailLog = {at:Date.now(), ok:true, rid:id, via:idx+1}; save(); sendBusy = false;
   }).catch(function(e){
     console.error(e); sendBusy = false; store.mailLog = {at:Date.now(), ok:false, rid:id, err:String(e && e.message || e)}; save();
     if(tries < 2) setTimeout(function(){ sendReport(tries+1); }, 5000);
