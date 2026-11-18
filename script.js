@@ -3,7 +3,7 @@
 /* ---------- 해석자 메일 ---------- */
 // 결과를 보면 해석자에게 '해석 가이드 링크'를 메일로 보냄 (사랑의 삼각형 검사와 같은 Apps Script 주소 사용)
 // 받는 사람 메일은 Apps Script(Code.gs)의 TO에서 정함. 비워 두면 메일 안 보냄
-var MAIL_URL = "https://script.google.com/macros/s/AKfycbzH0hh2VkvzmIue6K1y0fA-hz8aA3mvmK8NfmgplEAEd1PjNvBoUXOfVTMaELtWiK7X/exec";
+var MAIL_URL = "https://script.google.com/macros/s/AKfycbwIIbHjuYCxQYu0BWwRAMcaeZ0usu1nI4ZbaA7uv6ECscxtAD8GTUONqoR9NY89MU37/exec";
 // 지금 열린 게 해석 가이드 페이지(report.html)인지
 var REPORT = !!document.getElementById("reportPage");
 /* ---------- state colors ---------- */
