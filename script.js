@@ -6,8 +6,7 @@
 // 주소를 여러 개 넣으면, 앞 주소가 한도(하루 메일 개수)를 다 쓰거나 실패했을 때 다음 주소로 넘어가서 보냄
 // 한도는 구글 계정마다 따로라서, 다른 구글 계정으로 Code.gs를 하나씩 더 배포해서 주소를 아래에 추가하면 됨
 var MAIL_URLS = [
-  "https://script.google.com/macros/s/AKfycbwIIbHjuYCxQYu0BWwRAMcaeZ0usu1nI4ZbaA7uv6ECscxtAD8GTUONqoR9NY89MU37/exec"
-  , "https://script.google.com/macros/s/AKfycbxYJnlJyKQD3c-jlNG5UEyYLjXriC-UfmABZi8UfDDFr_MUoffMPjokIDiePVPWbVUFIQ/exec"
+  ""
   // , "https://script.google.com/macros/s/두번째_계정_주소/exec"
   // , "https://script.google.com/macros/s/세번째_계정_주소/exec"
 ].filter(function(u){ return u && u.indexOf("script.google.com") >= 0; });
